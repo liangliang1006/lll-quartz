@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+                      http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+    <changeSet id="1.0.0" author="lll">
+        <tagDatabase tag="version_1.0.0"/>
+    </changeSet>
+    <changeSet id="1.0.1" author="lll">
+        <sql>
+            CREATE TABLE `sys_job` (
+            `id` int(11) NOT NULL AUTO_INCREMENT COMMENT '主键',
+            `job_group` varchar(256) DEFAULT NULL COMMENT '任务组',
+            `job_name` varchar(256) DEFAULT NULL COMMENT '任务名称',
+            `cron_expression` varchar(128) DEFAULT NULL COMMENT 'cron表达式',
+            `bean_class` varchar(512) DEFAULT NULL COMMENT '任务类的全路径名',
+            `job_status` varchar(64) DEFAULT NULL COMMENT '任务状态',
+            `description` varchar(255) DEFAULT NULL COMMENT '描述',
+            `create_time` datetime DEFAULT NULL COMMENT '创建时间',
+            `modify_time` datetime DEFAULT NULL COMMENT '修改时间',
+            PRIMARY KEY (`id`),
+            UNIQUE KEY `jobGroup_jobName_unique` (`job_group`,`job_name`) USING BTREE
+            ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8;
+        </sql>
+        <rollback>
+            DROP TABLE sys_job;
+        </rollback>
+    </changeSet>
+</databaseChangeLog>

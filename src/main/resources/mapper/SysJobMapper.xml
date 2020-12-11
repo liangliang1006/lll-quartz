@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.lll.quartz.mapper.SysJobMapper">
+  <resultMap id="BaseResultMap" type="com.lll.quartz.entity.pojo.SysJob">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="job_group" jdbcType="VARCHAR" property="jobGroup" />
+    <result column="job_name" jdbcType="VARCHAR" property="jobName" />
+    <result column="cron_expression" jdbcType="VARCHAR" property="cronExpression" />
+    <result column="bean_class" jdbcType="VARCHAR" property="beanClass" />
+    <result column="job_status" jdbcType="VARCHAR" property="jobStatus" />
+    <result column="description" jdbcType="VARCHAR" property="description" />
+    <result column="create_time" jdbcType="DATE" property="createTime" />
+    <result column="modify_time" jdbcType="DATE" property="modifyTime" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, job_group, job_name, cron_expression, bean_class, job_status, description, create_time, 
+    modify_time
+  </sql>
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from sys_job
+    where id = #{id,jdbcType=INTEGER}
+  </select>
+  <delete id="deleteByPrimaryKey" parameterType="java.lang.Integer">
+    delete from sys_job
+    where id = #{id,jdbcType=INTEGER}
+  </delete>
+  <insert id="insert" parameterType="com.lll.quartz.entity.pojo.SysJob">
+    insert into sys_job (job_group, job_name,
+      cron_expression, bean_class, job_status, 
+      description, create_time, modify_time
+      )
+    values (#{jobGroup,jdbcType=VARCHAR}, #{jobName,jdbcType=VARCHAR},
+      #{cronExpression,jdbcType=VARCHAR}, #{beanClass,jdbcType=VARCHAR}, #{jobStatus,jdbcType=VARCHAR}, 
+      #{description,jdbcType=VARCHAR}, #{createTime,jdbcType=DATE}, #{modifyTime,jdbcType=DATE}
+      )
+  </insert>
+  <update id="updateByPrimaryKeySelective" parameterType="com.lll.quartz.entity.pojo.SysJob">
+    update sys_job
+    <set>
+      <if test="jobGroup != null">
+        job_group = #{jobGroup,jdbcType=VARCHAR},
+      </if>
+      <if test="jobName != null">
+        job_name = #{jobName,jdbcType=VARCHAR},
+      </if>
+      <if test="cronExpression != null">
+        cron_expression = #{cronExpression,jdbcType=VARCHAR},
+      </if>
+      <if test="beanClass != null">
+        bean_class = #{beanClass,jdbcType=VARCHAR},
+      </if>
+      <if test="jobStatus != null">
+        job_status = #{jobStatus,jdbcType=VARCHAR},
+      </if>
+      <if test="description != null">
+        description = #{description,jdbcType=VARCHAR},
+      </if>
+      <if test="modifyTime != null">
+        modify_time = #{modifyTime,jdbcType=DATE},
+      </if>
+    </set>
+    where id = #{id,jdbcType=INTEGER}
+  </update>
+  <select id="selectList" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from sys_job
+  </select>
+</mapper>

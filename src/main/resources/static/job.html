@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>任务调度</title>
+    <!-- 源文件：https://cdnjs.cloudflare.com/ajax/libs/element-ui/2.4.9/theme-chalk/index.css -->
+    <link href="css/index.css" rel="stylesheet">
+    <!-- 源文件：https://cdn.bootcss.com/vue/2.5.17/vue.min.js -->
+    <script src="js/vue.min.js"></script>
+    <!-- 源文件：https://cdn.bootcss.com/vue-resource/1.5.1/vue-resource.min.js -->
+    <script src="js/vue-resource.min.js"></script>
+    <!-- 源文件：https://cdnjs.cloudflare.com/ajax/libs/element-ui/2.4.9/index.js -->
+    <script src="js/index.js"></script>
+</head>
+<body>
+<div id="job">
+    <div id="top" style="padding: 5px;">
+        <el-button size="small" type="primary" plain @click="search" :loading="loading" icon="el-icon-search">
+            查询
+        </el-button>
+        <el-button size="small" type="primary" plain @click="handleAdd" icon="el-icon-plus">
+            添加
+        </el-button>
+    </div>
+    <br/>
+    <div>
+        <el-table ref="jobTable" :data="tableData" style="width:100%" border center>
+            <el-table-column prop="jobGroup" label="任务所在组" sortable align="center"></el-table-column>
+            <el-table-column prop="jobName" label="任务名称" show-overflow-tooltip align="center"></el-table-column>
+            <el-table-column prop="beanClass" label="任务类名" align="center"></el-table-column>
+            <el-table-column prop="cronExpression" label="表达式" align="center"></el-table-column>
+            <el-table-column prop="jobStatus" label="状态" align="center" :formatter="formatState"></el-table-column>
+            <el-table-column prop="description" label="描述" align="center"></el-table-column>
+            <el-table-column prop="createTime" label="创建时间" align="center"></el-table-column>
+            <el-table-column prop="modifyTime" label="修改时间" align="center"></el-table-column>
+            <el-table-column label="操作" width="300" align="center">
+                <template scope="scope">
+                    <el-button size="small" type="warning" @click="handlePause(scope.$index, scope.row)" v-if="scope.row.jobStatus == 'normal'">
+                        暂停
+                    </el-button>
+                    <el-button size="small" type="primary" @click="handleResume(scope.$index, scope.row)" v-if="scope.row.jobStatus == 'stop'">
+                        恢复
+                    </el-button>
+                    <el-button size="small" type="danger" @click="handleDelete(scope.$index, scope.row)">
+                        删除
+                    </el-button>
+                    <el-button size="small" type="success" @click="handleUpdate(scope.$index, scope.row)">
+                        修改
+                    </el-button>
+                </template>
+            </el-table-column>
+        </el-table>
+
+        <div align="center">
+            <el-pagination
+                    @size-change="handleSizeChange"
+                    @current-change="handleCurrentChange"
+                    :current-page="pageNum"
+                    :page-size="pageSize"
+                    layout="total, prev, pager, next, jumper"
+                    :total="totalCount">
+            </el-pagination>
+        </div>
+    </div>
+
+    <el-dialog title="添加任务" :visible.sync="addFormVisible" :close-on-click-modal="false">
+        <el-form :model="addForm" :rules="addRules" ref="addForm">
+            <el-form-item label="任务分组" prop="jobGroup" label-width="100px" style="width:90%">
+                <el-input v-model="addForm.jobGroup"></el-input>
+            </el-form-item>
+            <el-form-item label="任务名称" prop="jobName" label-width="100px" style="width:90%">
+                <el-input v-model="addForm.jobName"></el-input>
+            </el-form-item>
+            <el-form-item label="表达式" prop="cronExpression" label-width="100px" style="width:90%">
+                <el-input v-model="addForm.cronExpression"></el-input>
+            </el-form-item>
+            <el-form-item label="任务类名" prop="beanClass" label-width="100px" style="width:90%">
+                <el-input v-model="addForm.beanClass"></el-input>
+            </el-form-item>
+            <el-form-item label="描述" label-width="100px" style="width:90%">
+                <el-input type="textarea" :rows="3" v-model="addForm.description"></el-input>
+            </el-form-item>
+        </el-form>
+        <div slot="footer" class="dialog-footer">
+            <el-button @click="addFormVisible = false">取 消</el-button>
+            <el-button type="primary" @click="add">确 定</el-button>
+        </div>
+    </el-dialog>
+
+    <el-dialog title="修改任务" :visible.sync="updateFormVisible" :close-on-click-modal="false">
+        <el-form :model="updateForm" :rules="updateRules" ref="updateForm">
+            <el-form-item label="表达式" prop="cronExpression" label-width="100px" style="width:90%">
+                <el-input v-model="updateForm.cronExpression" auto-complete="off"></el-input>
+            </el-form-item>
+            <el-form-item label="描述" label-width="100px" style="width:90%">
+                <el-input type="textarea" :rows="3" v-model="updateForm.description"></el-input>
+            </el-form-item>
+        </el-form>
+        <div slot="footer" class="dialog-footer">
+            <el-button @click="updateFormVisible = false">取 消</el-button>
+            <el-button type="primary" @click="update">确 定</el-button>
+        </div>
+    </el-dialog>
+</div>
+
+<footer align="center">
+    <p>&copy; Quartz 定时任务管理</p>
+</footer>
+
+<script>
+    const vue = new Vue({
+        el: "#job",
+        data: {
+            //表格当前页数据
+            tableData: [],
+            //默认每页数据量
+            pageSize: 10,
+            //当前页码
+            pageNum: 1,
+            //默认数据总数
+            totalCount: 0,
+            //添加对话框默认可见性
+            addFormVisible: false,
+            //修改对话框默认可见性
+            updateFormVisible: false,
+            //提交的表单
+            addForm: {},
+            updateForm: {},
+            loading: false,
+            addRules: {
+                jobGroup: [
+                    { required: true, message: '请输入任务分组', trigger: 'blur' },
+                ],
+                jobName: [
+                    { required: true, message: '请输入任务名称', trigger: 'blur' },
+                ],
+                cronExpression: [
+                    { required: true, message: '请输入表达式', trigger: 'blur' },
+                ],
+                beanClass: [
+                    { required: true, message: '请输入任务类名', trigger: 'blur' },
+                ]
+            },
+            updateRules: {
+                cronExpression: [
+                    { required: true, message: '请输入表达式', trigger: 'blur' },
+                ]
+            }
+        },
+        methods: {
+            // 格式化状态
+            formatState: function (row, column, cellValue, index) {
+                if (row.jobStatus === 'normal') {
+                    return "运行中";
+                } else if (row.jobStatus === 'stop') {
+                    return "暂停";
+                } else {
+                    return "未知状态";
+                }
+            },
+            // 从服务器读取数据
+            loadData: function (pageNum, pageSize) {
+                this.loading = true;
+                this.$http.get('sysJob/list?' + 'pageNum=' + pageNum + '&pageSize=' + pageSize).then(function (res) {
+                    if(res.body.httpCode === 200){
+                        this.tableData = res.body.data;
+                        this.totalCount = res.body.paginator.total;
+                    }else{
+                        this.$message.error(res.body.msg);
+                    }
+                    this.loading = false;
+                }, function () {
+                    this.$message.error('加载任务列表失败！');
+                });
+            },
+            // 删除任务
+            handleDelete: function (index, row) {
+                this.$http.post('sysJob/delete', {
+                    "id": row.id
+                }, {emulateJSON: true}).then(function (res) {
+                    if(res.body.httpCode === 200){
+                        this.loadData(this.pageNum, this.pageSize);
+                    }else{
+                        this.$message.error(res.body.msg);
+                    }
+                }, function () {
+                    this.$message.error('删除任务失败！');
+                });
+            },
+            // 暂停任务
+            handlePause: function (index, row) {
+                this.$http.post('sysJob/pause', {
+                    "id": row.id
+                }, {emulateJSON: true}).then(function (res) {
+                    if(res.body.httpCode === 200){
+                        this.loadData(this.pageNum, this.pageSize);
+                    }else{
+                        this.$message.error(res.body.msg);
+                    }
+                }, function () {
+                    this.$message.error('暂停任务失败！');
+                });
+            },
+            // 恢复任务
+            handleResume: function (index, row) {
+                this.$http.post('sysJob/resume', {
+                    "id": row.id
+                }, {emulateJSON: true}).then(function (res) {
+                    if(res.body.httpCode === 200){
+                        this.loadData(this.pageNum, this.pageSize);
+                    }else{
+                        this.$message.error(res.body.msg);
+                    }
+                }, function () {
+                    this.$message.error('恢复任务失败！');
+                });
+            },
+            // 搜索
+            search: function () {
+                this.loadData(this.pageNum, this.pageSize);
+            },
+            // 弹出对话框
+            handleAdd: function () {
+                this.addForm = {};
+                this.addFormVisible = true;
+            },
+            // 添加
+            add: function () {
+                this.$refs["addForm"].validate((valid) => {
+                    if (valid) {
+                        this.$http.post('sysJob/add', this.addForm, {emulateJSON: true}).then(function (res) {
+                            if(res.body.httpCode === 200){
+                                this.loadData(this.pageNum, this.pageSize);
+                                this.addFormVisible = false;
+                            }else{
+                                this.$message.error(res.body.msg);
+                            }
+                        }, function () {
+                            this.$message.error('添加任务失败！');
+                        });
+                    } else {
+                        return false;
+                    }
+                });
+            },
+            // 更新
+            handleUpdate: function (index, row) {
+                this.updateForm = JSON.parse(JSON.stringify(row));
+                this.updateFormVisible = true;
+            },
+            // 更新任务
+            update: function () {
+                this.$refs["updateForm"].validate((valid) => {
+                    if (valid) {
+                        this.$http.post('sysJob/update',{
+                            "id": this.updateForm.id,
+                            "cronExpression": this.updateForm.cronExpression,
+                            "description": this.updateForm.description
+                        }, {emulateJSON: true}).then(function (res) {
+                            if(res.body.httpCode === 200){
+                                this.loadData(this.pageNum, this.pageSize);
+                                this.updateFormVisible = false;
+                            }else{
+                                this.$message.error(res.body.msg);
+                            }
+                        }, function () {
+                            this.$message.error('更新任务失败！');
+                        });
+                    } else {
+                        return false;
+                    }
+                });
+            },
+            // 每页显示数据量变更
+            handleSizeChange: function (val) {
+                this.pageSize = val;
+                this.loadData(this.pageNum, this.pageSize);
+            },
+            // 页码变更
+            handleCurrentChange: function (val) {
+                this.pageNum = val;
+                this.loadData(this.pageNum, this.pageSize);
+            }
+        }
+    });
+
+    //载入数据
+    vue.loadData(vue.pageNum, vue.pageSize);
+</script>
+
+</body>
+</html>
